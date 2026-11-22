@@ -1,0 +1,70 @@
+{
+  "name": "spotify-mcp",
+  "account_id": "1c9a91aea30cb331fbac299afbb5e69d",
+  "workers_dev": true,
+  "vars": {
+    "NODE_ENV": "production",
+    "MCP_PUBLIC_URL": "https://spotify-mcp.gugliriva.workers.dev/mcp",
+    "MCP_ALLOWED_HOSTS": "spotify-mcp.gugliriva.workers.dev",
+    "MCP_ALLOWED_ORIGIN_HOSTNAMES": "spotify-mcp.gugliriva.workers.dev,claude.ai,claude.com",
+    "MCP_LEGACY_MODE": "stateless",
+    "MCP_MAX_REQUEST_BYTES": "1048576",
+    "AUTH_MODE": "oauth",
+    "OAUTH_ISSUER_URL": "https://spotify-mcp.gugliriva.workers.dev",
+    "OAUTH_AUTHORIZATION_URL": "https://spotify-mcp.gugliriva.workers.dev/authorize",
+    "OAUTH_TOKEN_URL": "https://spotify-mcp.gugliriva.workers.dev/token",
+    "OAUTH_REGISTRATION_URL": "https://spotify-mcp.gugliriva.workers.dev/register",
+    "PROXY_REDIRECT_ALLOWLIST": "https://claude.ai/api/mcp/auth_callback,https://claude.com/api/mcp/auth_callback",
+    "LOG_LEVEL": "info"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "TOKENS",
+      "id": "be17ea4ea77f47b29d8d1cff8d844397"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "OAUTH_AUTHORITY",
+        "class_name": "NativeOAuthAuthority"
+      }
+    ]
+  },
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-08",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.1
+    }
+  },
+  "migrations": [
+    {
+      "tag": "v1-oauth-authority",
+      "new_sqlite_classes": [
+        "OAuthAuthorityDurableObject"
+      ]
+    },
+    {
+      "tag": "v2-remove-oauth-authority",
+      "deleted_classes": [
+        "OAuthAuthorityDurableObject"
+      ]
+    },
+    {
+      "tag": "v3-native-oauth-authority",
+      "new_sqlite_classes": [
+        "NativeOAuthAuthority"
+      ]
+    }
+  ]
+}

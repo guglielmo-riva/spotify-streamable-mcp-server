@@ -159,7 +159,7 @@ async function run(client: SpotifyApi, args: SpotifyPlaylistInput) {
       if (args.fields) params.set('fields', args.fields);
       if (args.additional_types) params.set('additional_types', args.additional_types);
       const response = PlaylistTracksResponseCodec.parse(
-        await call(client, 'GET', endpoint(`playlists/${args.playlist_id}/tracks`, params)),
+        await call(client, 'GET', endpoint(`playlists/${args.playlist_id}/items`, params)),
       );
       const baseOffset = Number(response.offset ?? args.offset ?? 0) || 0;
       const playlistUri = `spotify:playlist:${args.playlist_id}`;
@@ -198,7 +198,7 @@ async function run(client: SpotifyApi, args: SpotifyPlaylistInput) {
       const userId = me?.id?.trim();
       if (!userId) return fail('Unable to determine current user id.', 'bad_response', args.action);
       const playlist = PlaylistDetailsResponseCodec.parse(
-        await call(client, 'POST', `users/${userId}/playlists`, {
+        await call(client, 'POST', 'me/playlists', {
           name: args.name ?? 'New Playlist',
           description: args.description,
           public: args.public,
@@ -237,7 +237,7 @@ async function run(client: SpotifyApi, args: SpotifyPlaylistInput) {
       if (!args.playlist_id) return required('playlist_id is');
       if (!args.uris || args.uris.length === 0) return required('uris are');
       const snapshot = SnapshotResponseCodec.parse(
-        await call(client, 'POST', `playlists/${args.playlist_id}/tracks`, { uris: args.uris }),
+        await call(client, 'POST', `playlists/${args.playlist_id}/items`, { uris: args.uris }),
       );
       const name = await playlistName(client, args.playlist_id);
       const names = await trackNames(client, args.uris);
@@ -252,7 +252,8 @@ async function run(client: SpotifyApi, args: SpotifyPlaylistInput) {
       if (!args.playlist_id) return required('playlist_id is');
       if (!args.tracks || args.tracks.length === 0) return required('tracks are');
       const snapshot = SnapshotResponseCodec.parse(
-        await call(client, 'DELETE', `playlists/${args.playlist_id}/tracks`, {
+        await call(client, 'DELETE', `playlists/${args.playlist_id}/items`, {
+          items: args.tracks,
           tracks: args.tracks,
           snapshot_id: args.snapshot_id,
         }),
@@ -275,7 +276,7 @@ async function run(client: SpotifyApi, args: SpotifyPlaylistInput) {
         return required('range_start and insert_before are');
       }
       const snapshot = SnapshotResponseCodec.parse(
-        await call(client, 'PUT', `playlists/${args.playlist_id}/tracks`, {
+        await call(client, 'PUT', `playlists/${args.playlist_id}/items`, {
           range_start: args.range_start,
           insert_before: args.insert_before,
           range_length: args.range_length,

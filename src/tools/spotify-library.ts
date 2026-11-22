@@ -130,7 +130,7 @@ async function run(client: SpotifyApi, args: SpotifyLibraryInput, deps: Deps) {
       );
     }
     case 'tracks_add': {
-      await call(client, 'PUT', 'me/tracks', { ids });
+      await call(client, 'PUT', endpoint('me/library', new URLSearchParams({ uris: ids.map((id) => `spotify:track:${id}`).join(',') })));
       const noun = ids.length === 1 ? 'track' : 'tracks';
       return ok(
         { saved: ids.length, ids },
@@ -138,7 +138,7 @@ async function run(client: SpotifyApi, args: SpotifyLibraryInput, deps: Deps) {
       );
     }
     case 'tracks_remove': {
-      await call(client, 'DELETE', 'me/tracks', { ids });
+      await call(client, 'DELETE', endpoint('me/library', new URLSearchParams({ uris: ids.map((id) => `spotify:track:${id}`).join(',') })));
       const noun = ids.length === 1 ? 'track' : 'tracks';
       return ok(
         { removed: ids.length, ids },
@@ -146,11 +146,11 @@ async function run(client: SpotifyApi, args: SpotifyLibraryInput, deps: Deps) {
       );
     }
     case 'tracks_contains': {
-      const params = new URLSearchParams({ ids: ids.join(',') });
+      const params = new URLSearchParams({ uris: ids.map((id) => `spotify:track:${id}`).join(',') });
       const contains = (await call(
         client,
         'GET',
-        endpoint('me/tracks/contains', params),
+        endpoint('me/library/contains', params),
       )) as boolean[];
       const saved = ids.filter((_, index) => contains[index]);
       const described = saved.length > 0 ? await describeTracks(client, saved) : [];

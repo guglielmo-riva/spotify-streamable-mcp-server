@@ -119,7 +119,7 @@ async function exportPlaylist(
     const params = new URLSearchParams({
       limit: '50',
       offset: String(offset),
-      fields: 'items(track(name,artists(name))),next,total',
+      fields: 'items(track(name,artists(name)),item(name,artists(name))),next,total',
     });
     let page: Page;
     try {
@@ -129,8 +129,9 @@ async function exportPlaylist(
       return lines.length ? lines : ['(songs not readable: playlist not owned by you)'];
     }
     const items = Array.isArray(page?.items) ? page.items : [];
-    for (const item of items as { track?: { name?: string; artists?: { name?: string }[] } }[]) {
-      const track = item?.track;
+    type Entry = { name?: string; artists?: { name?: string }[] };
+    for (const item of items as { track?: Entry; item?: Entry }[]) {
+      const track = item?.track ?? item?.item;
       if (!track?.name) continue;
       const artists = (track.artists ?? [])
         .map((a) => a?.name)
@@ -266,9 +267,9 @@ async function run(client: SpotifyApi, args: SpotifyPlaylistInput) {
       // Each track keeps its position in the playlist, for play with an offset.
       const tracks = (Array.isArray(response.items) ? response.items : [])
         .map((item, index) => ({ item, index }))
-        .filter(({ item }) => !!item?.track)
+        .filter(({ item }) => !!(item?.track ?? item?.item))
         .map(({ item, index }) => ({
-          ...toSlimTrack(TrackCodec.parse(item.track)),
+          ...toSlimTrack(TrackCodec.parse(item.track ?? item.item)),
           position: baseOffset + index,
         }));
       const name = await playlistName(client, args.playlist_id);

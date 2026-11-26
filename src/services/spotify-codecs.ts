@@ -105,6 +105,8 @@ export type PlaylistDetailsResponseCodecType = z.infer<typeof PlaylistDetailsRes
 
 const PlaylistTracksItemCodec = z.object({
   track: TrackCodec.nullable().optional(),
+  // February 2026: the new /items endpoint names the field 'item'.
+  item: TrackCodec.nullable().optional(),
 });
 export const PlaylistTracksResponseCodec = z.object({
   items: z.array(PlaylistTracksItemCodec).optional(),

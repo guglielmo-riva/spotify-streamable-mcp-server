@@ -100,11 +100,105 @@ export const spotifyPlaylist = defineTool(
   },
 );
 
+/** Spotify calls one export may make; Workers Free allows 50 per request. */
+const EXPORT_CALL_BUDGET = 45;
+
+type Page = { items?: unknown[]; next?: string | null; total?: number };
+
+/** All 'title — artists' lines of one playlist, or `null` if the budget ran out. */
+async function exportPlaylist(
+  client: SpotifyApi,
+  playlistId: string,
+  budget: { left: number },
+): Promise<string[] | null> {
+  const lines: string[] = [];
+  let offset = 0;
+  for (;;) {
+    if (budget.left <= 0) return null;
+    budget.left -= 1;
+    const params = new URLSearchParams({
+      limit: '50',
+      offset: String(offset),
+      fields: 'items(track(name,artists(name))),next,total',
+    });
+    const page = await call<Page>(client, 'GET', endpoint(`playlists/${playlistId}/items`, params));
+    const items = Array.isArray(page?.items) ? page.items : [];
+    for (const item of items as { track?: { name?: string; artists?: { name?: string }[] } }[]) {
+      const track = item?.track;
+      if (!track?.name) continue;
+      const artists = (track.artists ?? [])
+        .map((a) => a?.name)
+        .filter(Boolean)
+        .join(', ');
+      lines.push(`${track.name} — ${artists}`);
+    }
+    offset += items.length;
+    if (!page?.next || items.length === 0) return lines;
+  }
+}
+
+async function runExport(client: SpotifyApi, args: SpotifyPlaylistInput) {
+  const budget = { left: EXPORT_CALL_BUDGET };
+  if (args.playlist_id) {
+    const name = (await playlistName(client, args.playlist_id)) ?? args.playlist_id;
+    budget.left -= 1;
+    const lines = await exportPlaylist(client, args.playlist_id, budget);
+    if (!lines) return fail('Playlist too large to export in one call.', 'too_large', 'export');
+    return ok(
+      'export',
+      { playlists: [{ name, count: lines.length }] },
+      `## ${name} (${lines.length})\n${lines.join('\n')}`,
+    );
+  }
+  const start = args.offset ?? 0;
+  const sections: string[] = [];
+  const done: { name: string; count: number }[] = [];
+  let index = start;
+  let total = 0;
+  for (;;) {
+    budget.left -= 1;
+    const params = new URLSearchParams({ limit: '50', offset: String(index) });
+    const list = PlaylistListResponseCodec.parse(
+      await call(client, 'GET', endpoint('me/playlists', params)),
+    );
+    total = Number(list.total ?? 0) || 0;
+    const playlists = (Array.isArray(list.items) ? list.items : []).map(toPlaylistSummary);
+    if (playlists.length === 0) break;
+    let stopped = false;
+    for (const playlist of playlists) {
+      const id =
+        String(playlist.uri ?? '')
+          .split(':')
+          .pop() ?? '';
+      const lines = id ? await exportPlaylist(client, id, budget) : [];
+      if (lines === null) {
+        stopped = true;
+        break;
+      }
+      sections.push(`## ${playlist.name} (${lines.length})\n${lines.join('\n')}`);
+      done.push({ name: String(playlist.name), count: lines.length });
+      index += 1;
+    }
+    if (stopped || budget.left <= 1) break;
+  }
+  const finished = index >= total;
+  const footer = finished
+    ? `\n\nExport complete: playlists ${start + 1}-${index} of ${total}.`
+    : `\n\nExported playlists ${start + 1}-${index} of ${total}. Call export again with offset=${index} to continue.`;
+  return ok(
+    'export',
+    { playlists: done, next_offset: finished ? null : index, total },
+    sections.join('\n\n') + footer,
+  );
+}
+
 async function run(client: SpotifyApi, args: SpotifyPlaylistInput) {
   const required = (field: string) =>
     fail(`${field} required for ${args.action}`, 'invalid_arguments', args.action);
 
   switch (args.action) {
+    case 'export':
+      return runExport(client, args);
     case 'list_user': {
       const params = new URLSearchParams();
       if (args.limit != null) params.set('limit', String(args.limit));

@@ -197,9 +197,10 @@ export const SpotifyPlaylistInputSchema = z.object({
       'add_items',
       'remove_items',
       'reorder_items',
+      'export',
     ])
     .describe(
-      'Playlist action: list_user, get, items, create, update_details, add_items, remove_items, reorder_items.',
+      "Playlist action: list_user, get, items, create, update_details, add_items, remove_items, reorder_items, export. 'export' returns compact 'title — artists' lines for whole playlists: one playlist with playlist_id, or your playlists starting at 'offset' (resume with the returned next_offset until done).",
     ),
   playlist_id: z
     .string()

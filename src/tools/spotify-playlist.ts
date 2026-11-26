@@ -121,7 +121,13 @@ async function exportPlaylist(
       offset: String(offset),
       fields: 'items(track(name,artists(name))),next,total',
     });
-    const page = await call<Page>(client, 'GET', endpoint(`playlists/${playlistId}/items`, params));
+    let page: Page;
+    try {
+      page = await call<Page>(client, 'GET', endpoint(`playlists/${playlistId}/items`, params));
+    } catch {
+      // Spotify only serves items of playlists the user owns or collaborates on.
+      return lines.length ? lines : ['(songs not readable: playlist not owned by you)'];
+    }
     const items = Array.isArray(page?.items) ? page.items : [];
     for (const item of items as { track?: { name?: string; artists?: { name?: string }[] } }[]) {
       const track = item?.track;
